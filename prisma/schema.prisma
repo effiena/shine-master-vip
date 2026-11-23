@@ -1,0 +1,87 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum RewardStatus {
+  AVAILABLE
+  REDEEMED
+  EXPIRED
+}
+
+model Customer {
+  id                 String   @id @default(cuid())
+  fullName           String?
+  phone              String?  @unique
+  vehiclePlate       String   @unique
+  vipCode            String?  @unique
+  referralToken      String   @unique @default(cuid())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  referralsMade      Referral[] @relation("Referrer")
+  referralReceived   Referral?  @relation("ReferredCustomer")
+  referralCounter    ReferralCounter?
+  welcomeReward      WelcomeReward?
+  bookings           Booking[]
+}
+
+model ReferralCounter {
+  id         String @id @default(cuid())
+  referrerId String @unique
+  nextNumber Int    @default(1)
+
+  referrer Customer @relation(fields: [referrerId], references: [id])
+}
+
+model Referral {
+  id                 String   @id @default(cuid())
+  referralCode       String   @unique
+  referrerId         String
+  referredCustomerId String   @unique
+  sequenceNumber     Int
+  createdAt          DateTime @default(now())
+
+  referrer         Customer @relation("Referrer", fields: [referrerId], references: [id])
+  referredCustomer Customer @relation("ReferredCustomer", fields: [referredCustomerId], references: [id])
+
+  @@unique([referrerId, sequenceNumber])
+}
+
+model WelcomeReward {
+  id         String       @id @default(cuid())
+  customerId String       @unique
+  status     RewardStatus @default(AVAILABLE)
+  issuedAt   DateTime     @default(now())
+  redeemedAt DateTime?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  bookingNumber String        @unique
+  customerId    String
+  serviceName   String
+  appointmentAt DateTime
+  status        BookingStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  confirmedAt   DateTime?
+  updatedAt     DateTime      @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([status, createdAt])
+}
